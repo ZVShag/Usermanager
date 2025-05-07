@@ -23,11 +23,10 @@ public:
 	{
 		auto users_db = dbmanager.load_from_database();
 
-		for ( auto& user : users_db)
+		for ( User& user : users_db)
 		{
 			if (user.role == "Admin")
 			{
-				
 				users.push_back(user);
 			}
 			else
