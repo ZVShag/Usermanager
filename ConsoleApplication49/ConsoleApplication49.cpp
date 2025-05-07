@@ -1,17 +1,29 @@
 ﻿#include <iostream>
-#include "User.h"
 #include"Usermanager.h"
-#include "DatabaseManager.h"
+#include <boost/asio.hpp>
 using namespace std;
+using boost::asio::ip::tcp;
+class Session
+{
+	tcp::socket sock;
+	UserManager manager;
+	
+public:
+	enable_shared_from_this<Session>{
+	Session(tcp::socket sckt, UserManager & usmng) :
+		sock(move(sckt)), manager(usmng) {
+}
+void Start() { readRequest(); } 
+private:
+	void readRequest() {auto self{shared_from_this()}
+	
+};
 int main()
 {
- 
 	
-	Admin a("dfdf", "dfsdfdsfd");
 	UserManager user_list;
-	user_list.addUser(a);
-	DatabaseManager db("new.db");
-	cout << user_list.findUser("dfdf");
+
+	
 	
 }
 

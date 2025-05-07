@@ -18,10 +18,7 @@
     <ClCompile Include="ConsoleApplication49.cpp">
       <Filter>Исходные файлы</Filter>
     </ClCompile>
-    <ClCompile Include="Usermanager.cpp">
-      <Filter>Исходные файлы</Filter>
-    </ClCompile>
-    <ClCompile Include="..\..\..\..\AppData\Local\Temp\Rar$DRa11468.39353.rartemp\sqlite-amalgamation-3490100\sqlite3.c">
+    <ClCompile Include="..\..\..\..\Downloads\sqlite-amalgamation-3490100\sqlite-amalgamation-3490100\sqlite3.c">
       <Filter>Исходные файлы</Filter>
     </ClCompile>
   </ItemGroup>
