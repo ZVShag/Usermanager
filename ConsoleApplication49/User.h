@@ -20,7 +20,7 @@ protected:
             slt += char(rand() % 10 + 48);
         for (int i = 0;i < 8;i++)
             slt += char(rand() % 26 + 65);
-        cout << slt << endl;
+        
         return slt;
     }
 
