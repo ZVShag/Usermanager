@@ -55,12 +55,26 @@ public:
 				return us.salt;
 		return "";
 	}
+
 	string findUser2(const string& uname)
 	{
 		for (auto& us : users)
 			if (uname == us.get_login())
 				return us.password;
 		return "";
+	}
+	bool findUser_role(const string& uname,const string& resource)
+	{
+		for (auto& us : users)
+			if (uname == us.get_login())
+			{
+				if (us.get_role() == "Admin")
+					return Admin::hasAccess(resource);
+				if (us.get_role() == "User")
+					return RegularUser::hasAccess(resource);
+				if (us.get_role() == "Guest")
+					return Guest::hasAccess(resource);
+			}
 	}
 	bool auth(const string& uname, const string& upass)
 	{

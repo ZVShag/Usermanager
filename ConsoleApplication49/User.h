@@ -56,7 +56,7 @@ public:
         return ss.str();
     }
 
-    virtual bool hasAccess(const string& rl)
+    static bool hasAccess(const string& rl)
     {
         return false;
     }
@@ -75,14 +75,17 @@ class Admin : public User
 {
 public:
     Admin(const string& lgn, const string& pswrd) : User(lgn, pswrd, "Admin") {}
-    bool hasAccess(const string& rl) override { return true; }
+    static bool hasAccess(const string& rl) 
+    { 
+        return true; 
+    }
 };
 
 class RegularUser : public User
 {
 public:
     RegularUser(const string& lgn, const string& pswrd) : User(lgn, pswrd, "User") {}
-    bool hasAccess(const string& rl) override
+    static bool hasAccess(const string& rl) 
     {
         return ((rl == "profile") || (rl == "public"));
     }
@@ -97,7 +100,7 @@ public:
         password = "";
     }
 
-    bool hasAccess(const string& rl) override
+    static bool hasAccess(const string& rl) 
     {
         return (rl == "public");
     }
