@@ -77,14 +77,34 @@ private:
 		boost::asio::async_write(socket, boost::asio::buffer(response),
 			[this, self](boost::system::error_code ec, std::size_t) {
 				if (!ec) {
-					readRequest();  // Ждем следующий запрос
+					readRequest();  
 				}
 			});
 
 	}
-
-
-	};
+};
+class Server
+{
+	tcp::acceptor acept;
+	UserManager& manager;
+public:
+	Server(boost::asio::io_context& io_context, int port, UserManager& usmanager) :
+		acept(io_context, tcp::endpoint(tcp::v4(), port)), manager(usmanager) 
+	{
+		acceptor();
+	}
+	void acceptor()
+	{
+		acept.async_accept([this](boost::system::error_code ec, tcp::socket socket)
+			{
+				if (!ec)
+				{
+					make_shared<Session>(move(socket), manager)->Start();
+				}
+				acceptor();
+			});
+	}
+};
 	int main()
 	{
 
@@ -94,34 +114,11 @@ private:
 		RegularUser user("Tom", "password");
 		user_list.addUser(user);
 
-		string request;
-		cin >> request;
+		boost::asio::io_context io_context;
+		Server serv(io_context, 868, user_list);
+		io_context.run();
 
-		string respns;
-		if (request.find("login:") == 0) // если запрос начинается с login:admin:12345
-		{
-			int pos_first = request.find(":", 6);
-			int pos_second = request.find(':', pos_first + 1);
-			string user_name = request.substr(6, pos_first - 6);
-			string password = request.substr(pos_first + 1, pos_second - pos_first - 1);
-			bool auth = user_list.auth(user_name, password);
-			respns = auth ? "Auth_success" : "Auth_failed";
-			cout << respns;
-		}
-		else
-
-		{
-			if (request.find("access:") == 0)
-			{          // access:Tom:profile
-				int pos_first = request.find(":", 7);
-				int pos_second = request.find(':', pos_first + 1);
-				string user_name = request.substr(7, pos_first - 7);
-				string resource = request.substr(pos_first + 1, pos_second - pos_first - 1);
-				bool res = user_list.findUser_role(user_name, resource);
-				cout << res;
-			}
-		}
-		// registration:Tom:123&64ABC
+		
 
 	}
 
