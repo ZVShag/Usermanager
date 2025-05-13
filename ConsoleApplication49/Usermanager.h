@@ -44,7 +44,7 @@ public:
 				}
 		}
 	}
-	void addUser(User& usr)
+	void addUser(const User& usr)
 	{
 		users.push_back(usr);
 	}
