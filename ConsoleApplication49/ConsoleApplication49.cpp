@@ -47,54 +47,31 @@ private:
         string respns;
 
         try {
-            if (request.starts_with("login:")) {
-                size_t user_start = 6;
-                size_t pass_delim = request.find(':', user_start);
-                size_t end_delim = request.find(':', pass_delim + 1);
-
-                if (pass_delim == string::npos || end_delim == string::npos) {
-                    throw invalid_argument("Invalid login format");
-                }
-
-                string user_name = request.substr(user_start, pass_delim - user_start);
-                string password = request.substr(pass_delim + 1, end_delim - (pass_delim + 1));
-
+            if (request.find("login:") == 0) // если запрос начинается с login:admin:12345
+               {
+                int pos_first = request.find(":", 6);
+                int pos_second = request.find(':', pos_first + 1);
+                string user_name = request.substr(6, pos_first - 6);
+                string password = request.substr(pos_first + 1, pos_second - pos_first - 1);
                 bool auth = manager.auth(user_name, password);
-                respns = auth ? "Auth_success\n" : "Auth_failed\n";
+                cout << user_name <<endl << password;
+                respns = auth ? "Auth_success" : "Auth_failed";
+               }
+            else  // если запрос начинается с access:username:resource
+            {  if (request.find("access:") == 0)
+			    {
+				    int pos1 = request.find(':', 7);
+				    string user_name = request.substr(7, pos1 - 7);
+				    int pos2 = request.find(':', pos1 + 1);
+				    string acc = request.substr(pos1 + 1, pos2 - 1 - pos1);
+                    bool auth = manager.findUser_role(user_name, acc);
+                    respns = auth ? "Access_granted" : "Access_denied";
+			    }
+                else 
+                    respns = "INVALID_REQUEST\n";
             }
-            else if (request.starts_with("access:")) {
-                size_t user_start = 7;
-                size_t res_delim = request.find(':', user_start);
-                size_t end_delim = request.find(':', res_delim + 1);
-
-                if (res_delim == string::npos || end_delim == string::npos) {
-                    throw invalid_argument("Invalid access format");
-                }
-
-                string user_name = request.substr(user_start, res_delim - user_start);
-                string resource = request.substr(res_delim + 1, end_delim - (res_delim + 1));
-
-                bool auth = manager.findUser_role(user_name, resource);
-                respns = auth ? "Access_granted\n" : "Access_denied\n";
-            }
-            else if (request.starts_with("registration:")) {
-                size_t user_start = 13;
-                size_t role_delim = request.find(':', user_start);
-                size_t end_delim = request.find(':', role_delim + 1);
-
-                if (role_delim == string::npos || end_delim == string::npos) {
-                    throw invalid_argument("Invalid registration format");
-                }
-
-                string user_name = request.substr(user_start, role_delim - user_start);
-                string role = request.substr(role_delim + 1, end_delim - (role_delim + 1));
-
-                manager.addUser(RegularUser(user_name, role));
-                respns = "User reg\n";
-            }
-            else {
-                respns = "INVALID_REQUEST\n";
-            }
+            
+            
         }
         catch (const exception& e) {
             respns = "ERROR: " + string(e.what()) + "\n";
