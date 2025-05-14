@@ -1,124 +1,151 @@
 ﻿#include <iostream>
-#include"Usermanager.h"
+#include "Usermanager.h"
 #include <boost/asio.hpp>
 #include <string>
 using namespace std;
 using boost::asio::ip::tcp;
-class Session :enable_shared_from_this<Session> {
 
-	tcp::socket socket;
-	UserManager manager;
-	enum { max_length = 1024 };
-	char data[max_length];
+class Session {
+    tcp::socket socket;
+    UserManager& manager;
+    boost::asio::streambuf stream_buffer; 
 
 public:
+    Session(tcp::socket sckt, UserManager& usmng) :
+        socket(move(sckt)), manager(usmng) {
+    }
 
-	Session(tcp::socket sckt, UserManager& usmng) :
-		socket(move(sckt)), manager(usmng) {
-	}
-	void Start() { readRequest(); }
+    static void Start(Session* self) {
+        self->readRequest();
+    }
+
+    ~Session() {
+    }
+
 private:
-	void readRequest()
-	{
-		auto self(shared_from_this());
-		socket.async_read_some(boost::asio::buffer(data, max_length),
-			[this, self](boost::system::error_code ec, std::size_t length)
-			{
-				if (!ec)
-				{
-					Proc_reqst(length);
-				}
-			});
-	}
-	void Proc_reqst(int length)
-	{
-		string request(data, length);
-		string respns;
+    void readRequest() {
+        auto self = this;
+        
+        boost::asio::async_read_until(socket, stream_buffer, '\n',
+            [this, self](boost::system::error_code ec,  size_t length) {
+                if (!ec) {
+                    
+                     istream is(&stream_buffer);
+                     string request;
+                     getline(is, request); 
 
-		if (request.find("login:") == 0) // если запрос начинается с login:admin:12345
-		{
-			int pos_first = request.find(":", 6);
-			int pos_second = request.find(':', pos_first + 1);
-			string user_name = request.substr(6, pos_first - 6);
-			string password = request.substr(pos_first + 1, pos_second - pos_first - 1);
-			bool auth = manager.auth(user_name, password);
-			respns = auth ? "Auth_success" : "Auth_failed";
-		}
-		else  // если запрос начинается с access:username:resource
-		{
-			if (request.find("access:") == 0)
-			{
-				int pos1 = request.find(':', 7);
-				string user_name = request.substr(7, pos1 - 7);
-				int pos2 = request.find(':', pos1 + 1);
-				string acc = request.substr(pos1 + 1, pos2 - 1 - pos1);
-				bool auth = manager.findUser_role(user_name, acc);
-				respns = auth ? "Access_granted" : "Access_denied";
-			}
-			else
-			{
-				if (request.find("registeration:") == 0)
-				{
-					int pos1 = request.find(':', 14);
-					string user_name = request.substr(14, pos1 - 14);
-					int pos2 = request.find(':', pos1 + 1);
-					string acc = request.substr(pos1 + 1, pos2 - 1 - pos1);
-					manager.addUser(RegularUser(user_name, acc));
-					respns = "User reg";
-				}
-				else
-					respns = "INVALID_REQUEST";
-			}
-		}
-		sendResponse(respns);
-	}
-	void sendResponse(const std::string& response) {
-		auto self(shared_from_this());
-		boost::asio::async_write(socket, boost::asio::buffer(response),
-			[this, self](boost::system::error_code ec, std::size_t) {
-				if (!ec) {
-					readRequest();  
-				}
-			});
+                    Proc_reqst(request);
+                  
+                }
+                else {
+                    delete this;
+                }
+            });
+    }
 
-	}
+    void Proc_reqst(const  string& request) {
+        string respns;
+
+        try {
+            if (request.starts_with("login:")) {
+                size_t user_start = 6;
+                size_t pass_delim = request.find(':', user_start);
+                size_t end_delim = request.find(':', pass_delim + 1);
+
+                if (pass_delim == string::npos || end_delim == string::npos) {
+                    throw invalid_argument("Invalid login format");
+                }
+
+                string user_name = request.substr(user_start, pass_delim - user_start);
+                string password = request.substr(pass_delim + 1, end_delim - (pass_delim + 1));
+
+                bool auth = manager.auth(user_name, password);
+                respns = auth ? "Auth_success\n" : "Auth_failed\n";
+            }
+            else if (request.starts_with("access:")) {
+                size_t user_start = 7;
+                size_t res_delim = request.find(':', user_start);
+                size_t end_delim = request.find(':', res_delim + 1);
+
+                if (res_delim == string::npos || end_delim == string::npos) {
+                    throw invalid_argument("Invalid access format");
+                }
+
+                string user_name = request.substr(user_start, res_delim - user_start);
+                string resource = request.substr(res_delim + 1, end_delim - (res_delim + 1));
+
+                bool auth = manager.findUser_role(user_name, resource);
+                respns = auth ? "Access_granted\n" : "Access_denied\n";
+            }
+            else if (request.starts_with("registration:")) {
+                size_t user_start = 13;
+                size_t role_delim = request.find(':', user_start);
+                size_t end_delim = request.find(':', role_delim + 1);
+
+                if (role_delim == string::npos || end_delim == string::npos) {
+                    throw invalid_argument("Invalid registration format");
+                }
+
+                string user_name = request.substr(user_start, role_delim - user_start);
+                string role = request.substr(role_delim + 1, end_delim - (role_delim + 1));
+
+                manager.addUser(RegularUser(user_name, role));
+                respns = "User reg\n";
+            }
+            else {
+                respns = "INVALID_REQUEST\n";
+            }
+        }
+        catch (const exception& e) {
+            respns = "ERROR: " + string(e.what()) + "\n";
+        }
+
+        sendResponse(respns);
+    }
+
+    void sendResponse(const  string& response) {
+        auto self = this;
+        boost::asio::async_write(socket, boost::asio::buffer(response),
+            [this, self](boost::system::error_code ec,  size_t) {
+                if (ec) {
+                    delete this;
+                }
+                readRequest();
+            });
+    }
 };
-class Server
-{
-	tcp::acceptor acept;
-	UserManager& manager;
+
+class Server {
+    tcp::acceptor acept;
+    UserManager& manager;
+
 public:
-	Server(boost::asio::io_context& io_context, int port, UserManager& usmanager) :
-		acept(io_context, tcp::endpoint(tcp::v4(), port)), manager(usmanager) 
-	{
-		acceptor();
-	}
-	void acceptor()
-	{
-		acept.async_accept([this](boost::system::error_code ec, tcp::socket socket)
-			{
-				if (!ec)
-				{
-					make_shared<Session>(move(socket), manager)->Start();
-				}
-				acceptor();
-			});
-	}
+    Server(boost::asio::io_context& io_context, int port, UserManager& usmanager) :
+        acept(io_context, tcp::endpoint(tcp::v4(), port)), manager(usmanager) {
+        acceptor();
+    }
+
+    void acceptor() {
+        acept.async_accept([this](boost::system::error_code ec, tcp::socket socket) {
+            if (!ec) {
+                Session* session = new Session(move(socket), this->manager);
+                Session::Start(session);
+            }
+            acceptor();
+            });
+    }
 };
-	int main()
-	{
 
-		UserManager user_list;
-		Admin admin("admin", "123");
-		user_list.addUser(admin);
-		RegularUser user("Tom", "password");
-		user_list.addUser(user);
+int main() {
+    UserManager user_list;
+    Admin admin("admin", "123");
+    user_list.addUser(admin);
+    RegularUser user("Tom", "password");
+    user_list.addUser(user);
 
-		boost::asio::io_context io_context;
-		Server serv(io_context, 868, user_list);
-		io_context.run();
-
-		
-
-	}
-
+    boost::asio::io_context io_context;
+    Server serv(io_context, 1234, user_list);
+    io_context.run();
+    //login:admin:123
+    return 0;
+}
